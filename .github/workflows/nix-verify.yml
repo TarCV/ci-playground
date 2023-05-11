@@ -15,6 +15,7 @@ jobs:
         with:
           ref: ${{github.event.check_run.head_sha}}
           check-name: 'Build-Completed'
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
       - uses: dawidd6/action-download-artifact@v2
         with:
           workflow: build.yml

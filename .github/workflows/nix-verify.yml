@@ -28,7 +28,6 @@ jobs:
           path: gha-artefact
       - run: |
           ls -R .
-          exit 1
       - uses: cachix/install-nix-action@v20
       - run: |
           cat <<- 'EOF' | grep -P --only-matching '\/nix\/store\/\K\S+(?=-gradleBuild)' | tail -n 1 | curl "https://cache.garnix.io/$(cat).narinfo" | tee _narinfo

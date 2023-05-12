@@ -16,6 +16,9 @@ jobs:
           ref: ${{github.event.check_run.head_sha}}
           check-name: 'Build'
           repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Sleep
+        run: sleep 15s
+        shell: bash
       - uses: dawidd6/action-download-artifact@v2
         with:
           workflow: build.yml

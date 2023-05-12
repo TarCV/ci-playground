@@ -44,4 +44,4 @@ jobs:
           path: ./artefact/*
       - name: Verify same (i.e. reproducible)
         run: |
-          cmp -b gha-artefact/* artefact/*
+          cmp -b gha-artefact/*/* artefact/*

@@ -12,9 +12,28 @@
       defaultPackage.x86_64-linux =
         with import nixpkgs { system = "x86_64-linux"; };
                let
+                 flakeSources = nixpkgs.lib.cleanSourceWith {
+                    name = "source";
+                    src = ./.;
+                    filter = gitignore.lib.gitignoreFilterWith {
+                      basePath = ./.;
+                      # *.md are included in the build as parts of README and CHANGELOG are copied to manifest
+                      extraRules = ''
+                         /.*
+                         /ci
+                         /docs
+                         /*.yml
+                         /*.txt
+                         /prepare4nix.sh
+                         flake.lock
+                         *.nix
+                      '';
+                    };
+                 };
+               in let
                  gradleUrls = builtins.filter
                                    (x: x != "")
-                                   (lib.strings.splitString "\n" (builtins.readFile ./artifacts.lst));
+                                   (lib.strings.splitString "\n" (builtins.readFile "${flakeSources}/artifacts.lst"));
                  gradleArtifacts =
                             (builtins.concatMap
                               (componentPart:
@@ -46,14 +65,14 @@
                                 (x: builtins.isList x)
                                 (builtins.split
                                   ''<component[[:space:]]+group="([^"]+)"[[:space:]]+name="([^"]+)"[[:space:]]+version="([^"]+)">(([^<]+</?(artifact|sha256))+)''
-                                  (builtins.readFile ./gradle/verification-metadata.xml)
+                                  (builtins.readFile "${flakeSources}/gradle/verification-metadata.xml")
                                 )
                               )
                             );
                in stdenv.mkDerivation rec {
                  name = "gradleBuild";
 
-                 gradleLines = lib.strings.splitString "\n" (builtins.readFile ./gradle/wrapper/gradle-wrapper.properties);
+                 gradleLines = lib.strings.splitString "\n" (builtins.readFile "${flakeSources}/gradle/wrapper/gradle-wrapper.properties");
                  gradleDist = lib.strings.stringAsChars (x: if x == "\\" then "" else x) (
                    lib.strings.removePrefix "distributionUrl=" (lib.lists.findSingle (it: lib.strings.hasPrefix "distributionUrl=" it) (abort "Unexpected gradle-wrapper content") (abort "Unexpected gradle-wrapper content") (
                      gradleLines
@@ -90,25 +109,7 @@
                    }
                  '';
 
-                 src = nixpkgs.lib.cleanSourceWith {
-                   name = name + "source";
-                   src = ./.;
-                   filter = gitignore.lib.gitignoreFilterWith {
-                     extraRules = ''
-                        /.*
-                        /ci
-                        /docs
-                        /*.yml
-                        /*.txt
-                        /*.md
-                        !/CHANGELOG.md
-                        /prepare4nix.sh
-                        flake.lock
-                        *.nix
-                     '';
-                     basePath = ./.;
-                   };
-                 };
+                 src = flakeSources;
                  buildInputs = [ pkgs.autoPatchelfHook pkgs.jdk11 pkgs.perl pkgs.unzip ];
                  dontBuild = true;
 
@@ -153,17 +154,6 @@
 
                    export JAVA_HOME=${jdk11}
 
-#                   mkdir -p $out/m2/com/jetbrains/intellij/idea/ideaIC/2021.1.3
-#                   cp -TR {$out/gradleDeps,$out/m2}/com/jetbrains/intellij/idea/ideaIC/2021.1.3
-#
-#                   pushd $HOME/.gradle/caches/modules-2/files-2.1/com.jetbrains/jbre/jbr-11_0_10-linux-x64-b1145.96/jbr
-#                     LIBDIRS="$(find . -name \*.so\* -exec dirname {} \+ | sort | uniq | tr '\n' ':')"
-#                     BINLIBS=$(find ./bin/ -type f; find $OUTPUTDIR -name \*.so\*)
-#                     echo "$BINLIBS" | while read i; do
-#                       patchelf --set-rpath "$LIBDIRS:$(patchelf --print-rpath "$i")" "$i" || true
-#                       patchelf --shrink-rpath "$i" || true
-#                     done
-#                   popd
                    ./gradlew -Dorg.gradle.jvmargs=-XX:MaxMetaspaceSize=1g \
                        -PNIX_GRADLE_DEPS_1=$out/gradleDeps \
                        -Dkotlin.compiler.execution.strategy="in-process" --no-daemon \
